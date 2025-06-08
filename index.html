@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORID 성찰 학습지</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        /* 템플릿 카드 스타일 */
+        .template-card {
+            transition: all 0.2s ease;
+            min-height: 120px;
+        }
+        .template-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .template-card:active {
+            transform: translateY(0px);
+        }
+        
+        /* 모바일 터치 최적화 */
+        .touch-target {
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .mobile-input {
+            font-size: 16px; /* iOS 확대 방지 */
+        }
+        
+        /* 모바일 버튼 최적화 */
+        .mobile-button {
+            padding: 12px 16px;
+            font-size: 16px;
+            min-height: 48px;
+        }
+        
+        /* 스마트폰 최적화 */
+        @media (max-width: 640px) {
+            .template-card {
+                min-height: 100px;
+                padding: 16px !important;
+            }
+            
+            .stage-section {
+                padding: 16px !important;
+                margin-bottom: 16px !important;
+            }
+            
+            .input-group {
+                margin-bottom: 12px !important;
+            }
+            
+            .button-group {
+                flex-direction: column !important;
+                gap: 12px !important;
+            }
+            
+            .header-text {
+                font-size: 1.5rem !important;
+                line-height: 1.3 !important;
+            }
+        }
+        
+        /* 프린트 스타일 */
+        @media print {
+            .print-hidden {
+                display: none !important;
+            }
+            .print-container {
+                box-shadow: none !important;
+                margin: 0 !important;
+                max-width: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- ===== 유형 선택 화면 (메인 화면) ===== -->
+    <div id="template-selection-screen" class="flex items-center justify-center min-h-screen p-4">
+        <div class="max-w-4xl w-full">
+            <div class="bg-white p-6 sm:p-8 lg:p-10 rounded-2xl shadow-xl">
+                <!-- 헤더 -->
+                <header class="text-center mb-6 sm:mb-8">
+                    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-3">📝 ORID 성찰 학습지</h1>
+                    <p class="text-sm sm:text-base text-gray-600 mb-2">학습한 내용에 맞는 유형을 선택해주세요</p>
+                    <p class="text-xs sm:text-sm text-gray-500">ORID 방법론으로 생각을 체계적으로 정리하고 성찰해보세요</p>
+                </header>
+
+                <!-- 템플릿 선택 -->
+                <section>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" id="template-cards">
+                        <!-- 템플릿 카드들이 동적으로 생성됩니다 -->
+                    </div>
+                </section>
+
+                <!-- 설명 -->
+                <div class="mt-6 sm:mt-8 p-4 bg-blue-50 rounded-lg">
+                    <h3 class="font-semibold text-blue-800 mb-2">💡 ORID 방법론이란?</h3>
+                    <div class="text-sm text-blue-700 space-y-1">
+                        <p><strong>O</strong>bjective: 객관적 사실 정리</p>
+                        <p><strong>R</strong>eflective: 감정과 느낌 표현</p>
+                        <p><strong>I</strong>nterpretive: 의미와 해석 찾기</p>
+                        <p><strong>D</strong>ecisional: 결론과 실천 계획</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 학습지 작성 화면 ===== -->
+    <div id="worksheet-screen" class="hidden p-4 sm:p-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white p-4 sm:p-6 lg:p-10 rounded-2xl shadow-xl border-4" id="worksheet-container">
+                <!-- 헤더 -->
+                <header class="text-center mb-6 sm:mb-8">
+                    <h1 class="header-text text-2xl sm:text-3xl lg:text-4xl font-bold mb-2" id="worksheet-title">📜 성찰 학습지</h1>
+                    <div class="p-3 sm:p-4 rounded-lg" id="worksheet-subtitle">
+                        <p class="text-sm sm:text-base text-gray-700" id="template-description"></p>
+                    </div>
+                </header>
+
+                <form id="student-form">
+                    <!-- 학생 정보 -->
+                    <section class="bg-gray-50 p-3 sm:p-4 rounded-lg mb-6 sm:mb-8">
+                        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4">👨‍🎓 학생 정보</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="input-group">
+                                <label for="student-school" class="block text-sm font-medium text-gray-700 mb-2">학교명</label>
+                                <input type="text" id="student-school" name="student-school" 
+                                       class="mobile-input w-full p-3 sm:p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                                       placeholder="예: 서울초등학교">
+                            </div>
+                            <div class="input-group">
+                                <label for="student-class" class="block text-sm font-medium text-gray-700 mb-2">학반</label>
+                                <input type="text" id="student-class" name="student-class" 
+                                       class="mobile-input w-full p-3 sm:p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                                       placeholder="예: 3학년 2반">
+                            </div>
+                            <div class="input-group">
+                                <label for="student-name" class="block text-sm font-medium text-gray-700 mb-2">이름 *</label>
+                                <input type="text" id="student-name" name="student-name" required
+                                       class="mobile-input w-full p-3 sm:p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                                       placeholder="이름을 입력하세요">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 학습 주제 -->
+                    <section class="bg-blue-50 p-3 sm:p-4 rounded-lg mb-6 sm:mb-8">
+                        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4">📚 학습 주제</h2>
+                        <div class="input-group">
+                            <label for="learning-topic" class="block text-sm font-medium text-gray-700 mb-2">오늘 학습한 내용이나 주제를 적어주세요</label>
+                            <input type="text" id="learning-topic" name="learning-topic" 
+                                   class="mobile-input w-full p-3 sm:p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                                   placeholder="예: 흥부와 놀부, 물의 상태변화 실험, 조선시대 문화">
+                        </div>
+                    </section>
+
+                    <!-- 학습지 단계들 -->
+                    <div id="worksheet-stages" class="space-y-6 sm:space-y-8">
+                        <!-- 단계별 내용이 동적으로 생성됩니다 -->
+                    </div>
+
+                    <!-- 버튼 -->
+                    <div class="mt-8 sm:mt-10 button-group flex flex-col sm:flex-row gap-4">
+                        <button type="submit" 
+                                class="w-full sm:w-auto flex-1 bg-blue-500 text-white font-bold mobile-button rounded-lg hover:bg-blue-600 transition-colors">
+                            성찰 완료! 🎉
+                        </button>
+                        <button type="button" id="reset-student" 
+                                class="w-full sm:w-auto bg-gray-200 text-gray-700 font-bold mobile-button rounded-lg hover:bg-gray-300 transition-colors">
+                            다시 작성
+                        </button>
+                        <button type="button" onclick="goHome()" 
+                                class="w-full sm:w-auto bg-gray-100 text-gray-600 font-bold mobile-button rounded-lg hover:bg-gray-200 transition-colors">
+                            🏠 처음으로
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 결과 화면 ===== -->
+    <div id="results-screen" class="hidden p-4 sm:p-8">
+        <div class="max-w-4xl mx-auto">
+            <div id="results-container" class="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xl print-container">
+                <!-- 결과 헤더 -->
+                <div class="text-center mb-6 sm:mb-8 border-b-4 pb-6" id="result-header">
+                    <h1 class="text-2xl sm:text-3xl font-bold mb-2" id="result-title">📜 나의 성찰 학습지</h1>
+                    <div class="p-3 sm:p-4 rounded-lg" id="result-info-box">
+                        <p class="text-base sm:text-lg font-semibold" id="result-topic-title"></p>
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-2 text-xs sm:text-sm text-gray-600 gap-1 sm:gap-0">
+                            <span id="result-student-info"></span>
+                            <span id="result-date-info"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결과 단계들 -->
+                <div id="result-stages" class="space-y-6 sm:space-y-8">
+                    <!-- 결과가 동적으로 생성됩니다 -->
+                </div>
+
+                <!-- 푸터 -->
+                <div class="mt-6 sm:mt-8 pt-6 border-t-2 border-gray-200 text-center text-xs sm:text-sm text-gray-500">
+                    <p>이 학습지는 ORID 방법론을 활용한 성찰 학습의 결과물입니다.</p>
+                </div>
+
+                <!-- 다운로드 버튼 -->
+                <div class="mt-6 sm:mt-8 button-group flex flex-col sm:flex-row gap-4 print-hidden">
+                    <button onclick="downloadAsImage()" 
+                            class="flex-1 bg-blue-500 text-white font-bold mobile-button rounded-lg hover:bg-blue-600 transition-colors">
+                        📷 이미지로 다운로드
+                    </button>
+                    <button onclick="downloadAsPDF()" 
+                            class="flex-1 bg-red-500 text-white font-bold mobile-button rounded-lg hover:bg-red-600 transition-colors">
+                        📄 PDF로 다운로드
+                    </button>
+                    <button onclick="writeNew()" 
+                            class="flex-1 bg-green-500 text-white font-bold mobile-button rounded-lg hover:bg-green-600 transition-colors">
+                        ✏️ 새로 작성하기
+                    </button>
+                    <button onclick="goHome()" 
+                            class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold mobile-button rounded-lg transition-colors">
+                        🏠 처음으로
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 전역 변수 ====================
+        let selectedTemplate = '';
+        let qaCounters = {};
+
+        // ==================== 템플릿 정의 ====================
+        const templates = {
+            literature: {
+                name: '문학작품',
+                emoji: '📚',
+                description: '소설, 시, 동화 등 문학 작품을 읽고 성찰할 때 사용하세요',
+                colors: ['amber-500', 'orange-500', 'red-500', 'pink-500'],
+                bgColors: ['amber-50', 'orange-50', 'red-50', 'pink-50'],
+                borderColors: ['amber-300', 'orange-300', 'red-300', 'pink-300'],
+                stages: {
+                    1: { title: '작품 속 핵심 정보', subtitle: '등장인물, 배경, 사건 등을 기록하세요', placeholder: '등장인물, 배경, 사건 등을 기록하세요...', icon: '📖' },
+                    2: { title: '읽으며 느낀 감정', subtitle: '이 장면에서 어떤 기분이 들었나요?', placeholder: '읽으며 느낀 감정이나 생각을 적어보세요...', icon: '💝' },
+                    3: { title: '작가의 숨은 메시지', subtitle: '작가가 전달하려는 메시지는 무엇일까요?', placeholder: '작가가 전달하려는 메시지는?', icon: '🎭' },
+                    4: { title: '내 삶에 적용할 점', subtitle: '이 작품에서 배운 점을 어떻게 실천할까요?', placeholder: '이 작품에서 배운 점을 어떻게 실천할 수 있을까요?', icon: '🌱' }
+                }
+            },
+            science: {
+                name: '과학실험',
+                emoji: '🔬',
+                description: '실험 관찰이나 과학 개념 학습 후 사용하세요',
+                colors: ['blue-500', 'cyan-500', 'teal-500', 'green-500'],
+                bgColors: ['blue-50', 'cyan-50', 'teal-50', 'green-50'],
+                borderColors: ['blue-300', 'cyan-300', 'teal-300', 'green-300'],
+                stages: {
+                    1: { title: '실험에서 관찰한 것들', subtitle: '실험 결과, 변화, 데이터 등을 기록하세요', placeholder: '실험 결과, 변화, 데이터 등을 기록하세요...', icon: '🔍' },
+                    2: { title: '실험하며 느낀 점', subtitle: '신기했던 점, 궁금했던 점을 적어보세요', placeholder: '신기했던 점, 궁금했던 점을 적어보세요...', icon: '🤔' },
+                    3: { title: '과학 원리 탐구', subtitle: '왜 이런 결과가 나왔을까요?', placeholder: '왜 이런 결과가 나왔을까요?', icon: '⚗️' },
+                    4: { title: '일상 속 활용법', subtitle: '이 원리를 어디에 활용할 수 있을까요?', placeholder: '이 원리를 어디에 활용할 수 있을까요?', icon: '💡' }
+                }
+            },
+            history: {
+                name: '역사학습',
+                emoji: '🏛️',
+                description: '역사적 사건이나 인물에 대해 학습한 후 사용하세요',
+                colors: ['yellow-600', 'orange-600', 'red-600', 'purple-600'],
+                bgColors: ['yellow-50', 'orange-50', 'red-50', 'purple-50'],
+                borderColors: ['yellow-300', 'orange-300', 'red-300', 'purple-300'],
+                stages: {
+                    1: { title: '역사적 사실과 정보', subtitle: '연도, 인물, 사건, 장소 등을 기록하세요', placeholder: '연도, 인물, 사건, 장소 등을 기록하세요...', icon: '📜' },
+                    2: { title: '그 시대에 대한 느낌', subtitle: '그 시대 사람들의 마음은 어땠을까요?', placeholder: '그 시대에 대해 어떤 느낌이 들었나요?', icon: '⏰' },
+                    3: { title: '역사의 의미와 교훈', subtitle: '이 사건이 역사에 미친 영향은?', placeholder: '이 사건이 역사에 미친 영향은?', icon: '🏺' },
+                    4: { title: '현재와의 연결점', subtitle: '지금 우리에게 주는 교훈은?', placeholder: '지금 우리에게 주는 교훈은?', icon: '🌍' }
+                }
+            },
+            video: {
+                name: '영상학습',
+                emoji: '🎬',
+                description: '동영상이나 다큐멘터리를 시청한 후 사용하세요',
+                colors: ['indigo-500', 'purple-500', 'pink-500', 'rose-500'],
+                bgColors: ['indigo-50', 'purple-50', 'pink-50', 'rose-50'],
+                borderColors: ['indigo-300', 'purple-300', 'pink-300', 'rose-300'],
+                stages: {
+                    1: { title: '영상 속 핵심 내용', subtitle: '중요한 장면, 정보, 대사 등을 기록하세요', placeholder: '중요한 장면, 정보, 대사 등을 기록하세요...', icon: '📺' },
+                    2: { title: '시청하며 든 생각', subtitle: '재미있었던 점, 놀라웠던 점을 적어보세요', placeholder: '재미있었던 점, 놀라웠던 점을 적어보세요...', icon: '💭' },
+                    3: { title: '영상의 숨은 메시지', subtitle: '제작자가 전달하고 싶었던 것은?', placeholder: '제작자가 전달하고 싶었던 것은?', icon: '🎯' },
+                    4: { title: '내가 실천할 것', subtitle: '이 영상을 보고 해보고 싶은 것은?', placeholder: '이 영상을 보고 해보고 싶은 것은?', icon: '🚀' }
+                }
+            },
+            activity: {
+                name: '체험활동',
+                emoji: '🎪',
+                description: '견학, 체험, 실습 등의 활동 후 사용하세요',
+                colors: ['emerald-500', 'teal-500', 'cyan-500', 'sky-500'],
+                bgColors: ['emerald-50', 'teal-50', 'cyan-50', 'sky-50'],
+                borderColors: ['emerald-300', 'teal-300', 'cyan-300', 'sky-300'],
+                stages: {
+                    1: { title: '체험 활동 내용', subtitle: '무엇을 했는지, 어떤 순서로 했는지 기록하세요', placeholder: '무엇을 했는지, 어떤 순서로 했는지 기록하세요...', icon: '🎯' },
+                    2: { title: '활동 중 느낌', subtitle: '즐거웠던 점, 어려웠던 점을 적어보세요', placeholder: '즐거웠던 점, 어려웠던 점을 적어보세요...', icon: '😊' },
+                    3: { title: '활동의 의미 찾기', subtitle: '왜 이런 활동을 했을까요?', placeholder: '왜 이런 활동을 했을까요?', icon: '🔍' },
+                    4: { title: '앞으로의 계획', subtitle: '또 해보고 싶은 것, 개선하고 싶은 것은?', placeholder: '또 해보고 싶은 것, 개선하고 싶은 것은?', icon: '📅' }
+                }
+            },
+            general: {
+                name: '일반 성찰',
+                emoji: '📝',
+                description: '어떤 학습 활동이든 사용할 수 있는 기본 템플릿입니다',
+                colors: ['gray-500', 'slate-500', 'zinc-500', 'neutral-500'],
+                bgColors: ['gray-50', 'slate-50', 'zinc-50', 'neutral-50'],
+                borderColors: ['gray-300', 'slate-300', 'zinc-300', 'neutral-300'],
+                stages: {
+                    1: { title: '학습 내용 정리', subtitle: '오늘 배운 중요한 내용들을 기록하세요', placeholder: '오늘 배운 중요한 내용들을 기록하세요...', icon: '📋' },
+                    2: { title: '학습하며 느낀 점', subtitle: '공부하면서 어떤 생각이나 느낌이 들었나요?', placeholder: '공부하면서 어떤 생각이나 느낌이 들었나요?', icon: '💭' },
+                    3: { title: '학습 내용의 의미', subtitle: '왜 이것을 배우는 것일까요?', placeholder: '왜 이것을 배우는 것일까요?', icon: '🤔' },
+                    4: { title: '앞으로의 학습 계획', subtitle: '더 알고 싶은 것, 실천하고 싶은 것은?', placeholder: '더 알고 싶은 것, 실천하고 싶은 것은?', icon: '🎯' }
+                }
+            }
+        };
+
+        // ==================== 초기화 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            showTemplateSelection();
+            renderTemplateCards();
+        });
+
+        // ==================== 화면 전환 함수들 ====================
+        function showTemplateSelection() {
+            hideAllScreens();
+            document.getElementById('template-selection-screen').classList.remove('hidden');
+        }
+
+        function showWorksheet() {
+            hideAllScreens();
+            document.getElementById('worksheet-screen').classList.remove('hidden');
+        }
+
+        function showResults() {
+            hideAllScreens();
+            document.getElementById('results-screen').classList.remove('hidden');
+            document.getElementById('results-screen').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function hideAllScreens() {
+            const screens = ['template-selection-screen', 'worksheet-screen', 'results-screen'];
+            screens.forEach(screen => {
+                document.getElementById(screen).classList.add('hidden');
+            });
+        }
+
+        function goHome() {
+            selectedTemplate = '';
+            qaCounters = {};
+            showTemplateSelection();
+        }
+
+        // ==================== 템플릿 선택 ====================
+        function renderTemplateCards() {
+            const container = document.getElementById('template-cards');
+            container.innerHTML = '';
+            
+            Object.entries(templates).forEach(([key, template]) => {
+                const card = document.createElement('div');
+                card.className = 'template-card p-4 sm:p-6 border-2 border-gray-200 rounded-lg cursor-pointer hover:shadow-md touch-target bg-white';
+                card.onclick = () => selectTemplate(key);
+                
+                card.innerHTML = `
+                    <div class="text-center">
+                        <div class="text-2xl sm:text-3xl mb-3">${template.emoji}</div>
+                        <h3 class="font-bold text-gray-800 text-sm sm:text-base mb-2">${template.name}</h3>
+                        <p class="text-xs sm:text-sm text-gray-600 leading-relaxed">${template.description}</p>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function selectTemplate(templateKey) {
+            selectedTemplate = templateKey;
+            loadWorksheet();
+        }
+
+        // ==================== 학습지 로드 ====================
+        function loadWorksheet() {
+            const template = templates[selectedTemplate];
+            
+            // 헤더 설정
+            document.getElementById('worksheet-title').innerHTML = `${template.emoji} ${template.name} 성찰지`;
+            document.getElementById('template-description').textContent = template.description;
+            
+            // 테마 색상 적용
+            const container = document.getElementById('worksheet-container');
+            container.className = `bg-white p-4 sm:p-6 lg:p-10 rounded-2xl shadow-xl border-4 border-${template.borderColors[0]}`;
+            
+            const subtitle = document.getElementById('worksheet-subtitle');
+            subtitle.className = `p-3 sm:p-4 rounded-lg bg-${template.bgColors[0]}`;
+            
+            // 단계별 콘텐츠 생성
+            renderWorksheetStages(template);
+            
+            // 폼 초기화
+            initializeForm();
+            
+            showWorksheet();
+        }
+
+        function renderWorksheetStages(template) {
+            const container = document.getElementById('worksheet-stages');
+            container.innerHTML = '';
+            qaCounters = {};
+            
+            Object.entries(template.stages).forEach(([stageNum, stage], index) => {
+                const section = document.createElement('section');
+                section.className = `stage-section border border-gray-200 p-4 sm:p-6 rounded-lg bg-${template.bgColors[index]}`;
+                
+                let stageHTML = `
+                    <h3 class="text-base sm:text-lg font-bold text-${template.colors[index]} mb-2 sm:mb-3">
+                        ${stage.icon} ${stageNum}단계: ${stage.title}
+                    </h3>
+                    <p class="text-sm text-gray-500 mb-4">${stage.subtitle}</p>
+                `;
+                
+                if (stageNum === '3') {
+                    // 3단계는 질문-답변 형태
+                    qaCounters[`stage-${stageNum}-container`] = 0;
+                    stageHTML += `
+                        <div id="stage-${stageNum}-container" class="space-y-4"></div>
+                        <button type="button" onclick="addQaPair('stage-${stageNum}-container')" 
+                                class="mt-4 text-sm font-semibold text-${template.colors[index]} hover:text-${template.colors[index]} mobile-button bg-white border border-${template.colors[index]} rounded-md transition-colors">[+ 질문 추가]</button>
+                    `;
+                } else {
+                    // 1, 2, 4단계는 텍스트 입력 형태
+                    stageHTML += `
+                        <div id="stage-${stageNum}-container" class="space-y-3 sm:space-y-2"></div>
+                        <button type="button" onclick="addTextInput('stage-${stageNum}-container', '${stage.placeholder}')" 
+                                class="mt-4 text-sm font-semibold text-${template.colors[index]} hover:text-${template.colors[index]} mobile-button bg-white border border-${template.colors[index]} rounded-md transition-colors">[+ 내용 추가]</button>
+                    `;
+                }
+                
+                section.innerHTML = stageHTML;
+                container.appendChild(section);
+            });
+        }
+
+        function initializeForm() {
+            // 폼 리셋
+            document.getElementById('student-form').reset();
+            
+            // 각 단계별로 초기 입력 필드 추가
+            const template = templates[selectedTemplate];
+            Object.keys(template.stages).forEach(stageNum => {
+                if (stageNum === '3') {
+                    addQaPair(`stage-${stageNum}-container`, true);
+                } else {
+                    addTextInput(`stage-${stageNum}-container`, template.stages[stageNum].placeholder, true);
+                }
+            });
+        }
+
+        // ==================== 입력 필드 추가 함수들 ====================
+        function addTextInput(containerId, placeholder, isInitial = false) {
+            const container = document.getElementById(containerId);
+            const inputEl = document.createElement('div');
+            inputEl.className = 'input-group flex items-center gap-2 sm:gap-3';
+            inputEl.innerHTML = `
+                <input type="text" name="${containerId}-text" 
+                       class="mobile-input flex-1 p-3 sm:p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                       placeholder="${placeholder}">
+                ${!isInitial ? '<button type="button" onclick="this.parentElement.remove()" class="touch-target text-red-500 hover:text-red-700 font-bold text-xl bg-red-50 hover:bg-red-100 rounded-md border border-red-200 transition-colors">×</button>' : '<div class="w-12 sm:w-8"></div>'}
+            `;
+            container.appendChild(inputEl);
+        }
+
+        function addQaPair(containerId, isInitial = false) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const qaIndex = qaCounters[containerId]++;
+            const qaPair = document.createElement('div');
+            qaPair.className = 'qa-pair space-y-3 sm:space-y-2';
+            qaPair.innerHTML = `
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <input type="text" name="${containerId}-q-${qaIndex}" 
+                           class="mobile-input flex-1 p-3 sm:p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                           placeholder="질문을 입력하세요...">
+                    ${!isInitial ? '<button type="button" onclick="this.parentElement.parentElement.remove()" class="touch-target text-red-500 hover:text-red-700 font-bold text-xl bg-red-50 hover:bg-red-100 rounded-md border border-red-200 transition-colors">&times;</button>' : '<div class="w-12 sm:w-8"></div>'}
+                </div>
+                <textarea name="${containerId}-a-${qaIndex}" 
+                          class="mobile-input w-full p-3 sm:p-4 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                          rows="3" placeholder="답변을 입력하세요..."></textarea>
+            `;
+            container.appendChild(qaPair);
+        }
+
+        // ==================== 폼 제출 처리 ====================
+        document.getElementById('student-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            processSubmission(new FormData(e.target));
+        });
+
+        function processSubmission(formData) {
+            const template = templates[selectedTemplate];
+            
+            // 학생 정보
+            const studentSchool = formData.get('student-school') || '';
+            const studentClass = formData.get('student-class') || '';
+            const studentName = formData.get('student-name') || '이름 없음';
+            const learningTopic = formData.get('learning-topic') || '성찰 학습';
+            
+            // 학생 정보 조합
+            let studentInfo = studentName;
+            if (studentClass) {
+                studentInfo = `${studentClass} ${studentName}`;
+            }
+            if (studentSchool) {
+                studentInfo = `${studentSchool} ${studentInfo}`;
+            }
+            
+            // 결과 헤더 설정
+            document.getElementById('result-title').innerHTML = `${template.emoji} ${learningTopic}`;
+            document.getElementById('result-topic-title').textContent = learningTopic;
+            document.getElementById('result-student-info').textContent = studentInfo;
+            document.getElementById('result-date-info').textContent = `작성일: ${new Date().toLocaleDateString()}`;
+            
+            // 결과 박스 색상 적용
+            const resultInfoBox = document.getElementById('result-info-box');
+            resultInfoBox.className = `p-3 sm:p-4 rounded-lg bg-${template.bgColors[0]}`;
+            
+            const resultHeader = document.getElementById('result-header');
+            resultHeader.className = `text-center mb-6 sm:mb-8 border-b-4 pb-6 border-${template.borderColors[0]}`;
+            
+            // 단계별 결과 생성
+            generateResultStages(template, formData);
+            
+            showResults();
+        }
+
+        function generateResultStages(template, formData) {
+            const resultContainer = document.getElementById('result-stages');
+            resultContainer.innerHTML = '';
+            
+            Object.entries(template.stages).forEach(([stageNum, stage], index) => {
+                const section = document.createElement('section');
+                section.className = `bg-gradient-to-r from-${template.bgColors[index]} to-${template.bgColors[index]} p-4 sm:p-6 rounded-xl border-l-4 border-${template.colors[index]}`;
+                
+                let sectionHTML = `
+                    <h2 class="text-lg sm:text-xl font-bold text-${template.colors[index]} mb-3 sm:mb-4 flex items-center">
+                        <span class="mr-2">${stage.icon}</span>${stageNum}단계: ${stage.title}
+                    </h2>
+                `;
+                
+                if (stageNum === '3') {
+                    // 질문-답변 형태
+                    sectionHTML += '<div class="space-y-3 sm:space-y-4">';
+                    const qaCount = qaCounters[`stage-${stageNum}-container`];
+                    for (let i = 0; i < qaCount; i++) {
+                        const question = formData.get(`stage-${stageNum}-container-q-${i}`);
+                        const answer = formData.get(`stage-${stageNum}-container-a-${i}`);
+                        
+                        if (question || answer) {
+                            sectionHTML += `
+                                <div class="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
+                                    <div class="font-semibold text-gray-700 mb-2 text-sm sm:text-base">Q: ${question || '질문 없음'}</div>
+                                    <div class="text-gray-600 pl-3 sm:pl-4 border-l-2 border-gray-300 text-sm sm:text-base">A: ${answer || '답변 없음'}</div>
+                                </div>
+                            `;
+                        }
+                    }
+                    sectionHTML += '</div>';
+                } else {
+                    // 텍스트 목록 형태
+                    const texts = formData.getAll(`stage-${stageNum}-container-text`).filter(t => t.trim() !== '');
+                    sectionHTML += '<div class="space-y-2 sm:space-y-3">';
+                    texts.forEach(text => {
+                        sectionHTML += `
+                            <div class="bg-white p-3 sm:p-4 rounded-lg border border-${template.borderColors[index]} flex items-start">
+                                <span class="text-${template.colors[index]} mr-2 mt-1 flex-shrink-0">${stage.icon}</span>
+                                <span class="text-sm sm:text-base">${text}</span>
+                            </div>
+                        `;
+                    });
+                    sectionHTML += '</div>';
+                }
+                
+                section.innerHTML = sectionHTML;
+                resultContainer.appendChild(section);
+            });
+        }
+
+        function writeNew() {
+            loadWorksheet();
+        }
+
+        // ==================== 이벤트 리스너들 ====================
+        // 초기화 버튼
+        document.getElementById('reset-student').addEventListener('click', function() {
+            if (confirm('작성 중인 내용이 모두 사라집니다. 정말로 초기화하시겠습니까?')) {
+                initializeForm();
+            }
+        });
+
+        // ==================== 다운로드 함수들 ====================
+        async function downloadAsImage() {
+            const element = document.getElementById('results-container');
+            const printButtons = element.querySelectorAll('.print-hidden');
+            
+            // 버튼들 임시 숨기기
+            printButtons.forEach(btn => btn.style.display = 'none');
+            
+            try {
+                const canvas = await html2canvas(element, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    width: element.offsetWidth,
+                    height: element.offsetHeight,
+                    scrollX: 0,
+                    scrollY: 0
+                });
+                
+                const link = document.createElement('a');
+                const studentInfo = document.getElementById('result-student-info').textContent.replace(/[^\w가-힣]/g, '_');
+                const topic = document.getElementById('result-topic-title').textContent.replace(/[^\w가-힣]/g, '_');
+                link.download = `${topic}_성찰지_${studentInfo}_${new Date().getTime()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                console.log('이미지 다운로드 완료');
+            } catch (error) {
+                console.error('이미지 생성 오류:', error);
+                alert('이미지 생성에 실패했습니다: ' + error.message);
+            } finally {
+                // 버튼들 다시 보이기
+                printButtons.forEach(btn => btn.style.display = '');
+            }
+        }
+
+        async function downloadAsPDF() {
+            const element = document.getElementById('results-container');
+            const printButtons = element.querySelectorAll('.print-hidden');
+            
+            // 버튼들 임시 숨기기
+            printButtons.forEach(btn => btn.style.display = 'none');
+            
+            try {
+                console.log('PDF 생성 시작...');
+                
+                // 1단계: HTML을 고품질 이미지로 변환
+                const canvas = await html2canvas(element, {
+                    backgroundColor: '#ffffff',
+                    scale: 2, // 고해상도
+                    useCORS: true,
+                    allowTaint: true,
+                    width: element.offsetWidth,
+                    height: element.offsetHeight,
+                    scrollX: 0,
+                    scrollY: 0,
+                    logging: false // 콘솔 로그 비활성화
+                });
+                
+                console.log('이미지 변환 완료, PDF 생성 중...');
+                
+                // 2단계: 이미지를 PDF로 변환
+                const imgData = canvas.toDataURL('image/png', 1.0); // 최고 품질
+                
+                // jsPDF 라이브러리 확인 및 초기화
+                const { jsPDF } = window.jspdf;
+                if (!jsPDF) {
+                    throw new Error('jsPDF 라이브러리를 불러올 수 없습니다.');
+                }
+                
+                // A4 크기로 PDF 생성
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = 210; // A4 폭 (mm)
+                const pdfHeight = 297; // A4 높이 (mm)
+                
+                // 이미지 크기 계산
+                const imgWidth = pdfWidth - 20; // 좌우 여백 10mm씩
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                // 페이지 여백
+                const marginTop = 10;
+                const marginLeft = 10;
+                
+                if (imgHeight <= pdfHeight - 20) {
+                    // 한 페이지에 들어가는 경우
+                    pdf.addImage(imgData, 'PNG', marginLeft, marginTop, imgWidth, imgHeight);
+                } else {
+                    // 여러 페이지로 나누어야 하는 경우
+                    let yPosition = 0;
+                    const pageHeight = pdfHeight - 20; // 상하 여백 10mm씩
+                    
+                    while (yPosition < imgHeight) {
+                        if (yPosition > 0) {
+                            pdf.addPage();
+                        }
+                        
+                        // 현재 페이지에 들어갈 이미지 높이 계산
+                        const remainingHeight = imgHeight - yPosition;
+                        const currentPageHeight = Math.min(pageHeight, remainingHeight);
+                        
+                        // 이미지의 일부분을 현재 페이지에 추가
+                        const sourceY = (yPosition / imgHeight) * canvas.height;
+                        const sourceHeight = (currentPageHeight / imgHeight) * canvas.height;
+                        
+                        // 임시 캔버스 생성하여 이미지 일부 추출
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = canvas.width;
+                        tempCanvas.height = sourceHeight;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        
+                        tempCtx.drawImage(canvas, 0, sourceY, canvas.width, sourceHeight, 0, 0, canvas.width, sourceHeight);
+                        const tempImgData = tempCanvas.toDataURL('image/png', 1.0);
+                        
+                        pdf.addImage(tempImgData, 'PNG', marginLeft, marginTop, imgWidth, currentPageHeight);
+                        yPosition += pageHeight;
+                    }
+                }
+                
+                // 3단계: PDF 다운로드
+                const studentInfo = document.getElementById('result-student-info').textContent.replace(/[^\w가-힣]/g, '_');
+                const topic = document.getElementById('result-topic-title').textContent.replace(/[^\w가-힣]/g, '_');
+                const fileName = `${topic}_성찰지_${studentInfo}_${new Date().getTime()}.pdf`;
+                
+                pdf.save(fileName);
+                console.log('PDF 다운로드 완료:', fileName);
+                
+            } catch (error) {
+                console.error('PDF 생성 오류:', error);
+                
+                // 사용자에게 친화적인 오류 메시지
+                let errorMessage = 'PDF 생성에 실패했습니다.';
+                if (error.message.includes('jsPDF')) {
+                    errorMessage += ' PDF 라이브러리 로딩에 문제가 있습니다.';
+                } else if (error.message.includes('canvas')) {
+                    errorMessage += ' 이미지 변환에 문제가 있습니다.';
+                }
+                
+                alert(errorMessage + '\n\n대신 이미지로 다운로드하시겠습니까?');
+                
+                // 오류 발생 시 이미지 다운로드 제안
+                if (confirm('이미지로 다운로드하시겠습니까?')) {
+                    downloadAsImage();
+                }
+            } finally {
+                // 버튼들 다시 보이기
+                printButtons.forEach(btn => btn.style.display = '');
+            }
+        }
+
+        // PDF 라이브러리 로딩 확인 함수
+        function checkPDFLibrary() {
+            if (typeof window.jspdf === 'undefined') {
+                console.warn('jsPDF 라이브러리가 로드되지 않았습니다.');
+                return false;
+            }
+            return true;
+        }
+
+        // 페이지 로드 시 라이브러리 확인
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (!checkPDFLibrary()) {
+                    console.warn('PDF 다운로드 기능이 제한될 수 있습니다.');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
